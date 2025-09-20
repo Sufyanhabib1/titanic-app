@@ -1,28 +1,49 @@
 import streamlit as st
 import pickle
-import numpy as np
+import pandas as pd
 
-# Load the trained model
+# Load model
 model = pickle.load(open("titanic_model.pkl", "rb"))
 
 st.title("🚢 Titanic Survival Prediction App")
 
-st.write("Enter passenger details below to check survival prediction:")
-
-# Input fields
-pclass = st.selectbox("Passenger Class (1 = 1st, 2 = 2nd, 3 = 3rd)", [1, 2, 3])
+# User inputs
+pclass = st.selectbox("Passenger Class (Pclass)", [1, 2, 3])
 sex = st.selectbox("Sex", ["male", "female"])
-age = st.slider("Age", 0, 80, 25)
-sibsp = st.number_input("Number of Siblings/Spouses aboard", 0, 10, 0)
-parch = st.number_input("Number of Parents/Children aboard", 0, 10, 0)
-fare = st.slider("Ticket Fare", 0, 500, 50)
+age = st.number_input("Age", 1, 100, 25)
+sibsp = st.number_input("Siblings/Spouses aboard (SibSp)", 0, 10, 0)
+parch = st.number_input("Parents/Children aboard (Parch)", 0, 10, 0)
+fare = st.number_input("Ticket Fare", 0.0, 600.0, 50.0)
+embarked = st.selectbox("Port of Embarkation (Embarked)", ["C", "Q", "S"])
 
-# Convert sex to numeric
-sex = 0 if sex == "male" else 1
+# Prepare input in the same way as training
+input_df = pd.DataFrame({
+    "Pclass": [pclass],
+    "Sex": [sex],
+    "Age": [age],
+    "SibSp": [sibsp],
+    "Parch": [parch],
+    "Fare": [fare],
+    "Embarked": [embarked]
+})
 
-# Make prediction
+# One-hot encode
+input_df = pd.get_dummies(input_df)
+
+# Columns used during training
+training_cols = [
+    'Pclass', 'Age', 'SibSp', 'Parch', 'Fare',
+    'Sex_female', 'Sex_male',
+    'Embarked_C', 'Embarked_Q', 'Embarked_S'
+]
+
+# Align columns with training
+input_df = input_df.reindex(columns=training_cols, fill_value=0)
+
+# Prediction button
 if st.button("Predict"):
-    input_data = np.array([[pclass, sex, age, sibsp, parch, fare]])
-    prediction = model.predict(input_data)
-    result = "✅ Survived" if prediction[0] == 1 else "❌ Did Not Survive"
-    st.subheader(f"Prediction: {result}")
+    prediction = model.predict(input_df)
+    if prediction[0] == 1:
+        st.success("🎉 The passenger would have SURVIVED!")
+    else:
+        st.error("💀 The passenger would NOT have survived.")
